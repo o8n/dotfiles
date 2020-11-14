@@ -35,7 +35,7 @@ nnoremap j gj
 nnoremap k gk
 
 " シンタックスハイライトの有効化
-syntax on 
+syntax on
 
 " Tab系
 " 不可視文字を可視化(タブが「▸-」と表示される)
@@ -61,4 +61,3 @@ set wrapscan
 set hlsearch
 " ESC連打でハイライト解除
 nmap <Esc><Esc> :nohlsearch<CR><Esc>
-
