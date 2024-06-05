@@ -4,7 +4,7 @@ if has "git"; then
     git clone --recursive "$GITHUB_URL" "$DOTPATH"
 
 elif has "curl" || has "wget"; then
-    tarbell="https://github.com/okamotchan/dotfile/archive/master.tar.gz"
+    tarbell="https://github.com/o8n/dotfile/archive/master.tar.gz"
 
     if has "curl"; then
         curl -L "$tarball"
