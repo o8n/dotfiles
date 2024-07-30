@@ -1,33 +1,41 @@
-DOTPATH=~/.dotfile
+#!/bin/bash
 
-if has "git"; then
-    git clone --recursive "$GITHUB_URL" "$DOTPATH"
+# GitHubリポジトリのURL
+REPO_URL="https://raw.githubusercontent.com/o8n/dotfile/master"
 
-elif has "curl" || has "wget"; then
-    tarbell="https://github.com/o8n/dotfile/archive/master.tar.gz"
+# シンボリックリンクを作成する関数
+create_symlink() {
+    local src=$1
+    local dest=$2
+    if [ -e "$dest" ]; then
+        echo "$dest already exists. Skipping..."
+    else
+        ln -s "$src" "$dest"
+        echo "Created symlink: $dest -> $src"
+    fi
+}
 
-    if has "curl"; then
-        curl -L "$tarball"
+# 一時ディレクトリを作成
+TEMP_DIR=$(mktemp -d)
+cd $TEMP_DIR
 
-    elif has "wget"; then
-        wget -O - "$tarball"
+# zshrcをダウンロードしてシンボリックリンクを作成
+curl -LO "$REPO_URL/zshrc"
+create_symlink "$TEMP_DIR/zshrc" "$HOME/.zshrc"
 
-    fi | tar zxv
+# tmux.confをダウンロードしてシンボリックリンクを作成
+curl -LO "$REPO_URL/tmux.conf"
+create_symlink "$TEMP_DIR/tmux.conf" "$HOME/.tmux.conf"
 
-    mv -f dotfile-master "$DOTPATH"
+# vimrcをダウンロードしてシンボリックリンクを作成
+curl -LO "$REPO_URL/vimrc"
+create_symlink "$TEMP_DIR/vimrc" "$HOME/.vimrc"
 
-else
-    die "curl or wget required"
-fi
+# nvimディレクトリをダウンロードしてシンボリックリンクを作成
+mkdir -p $TEMP_DIR/nvim
+curl -LO "$REPO_URL/nvim/init.vim"
+mv init.vim nvim/
+create_symlink "$TEMP_DIR/nvim" "$HOME/.config/nvim"
 
-cd ~/.dotfile
-if [ $? -ne 0 ]; then
-    die "not found: $DOTPATH"
-fi
+echo "Dotfiles setup completed!"
 
-for f in .??*
-do
-    [ "$f" = ".git" ] && continue
-
-    ln -snfv "$DOTPATH/$f" "$HOME"/"$f"
-done
