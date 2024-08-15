@@ -1,11 +1,11 @@
-# dotfile
+# dotfiles
 
 ```sh
-$ curl -L raw.github.com/o8n/dotfile/master/install.sh | bash
+$ curl -L raw.github.com/o8n/dotfiles/master/install.sh | bash
 
 # it means
-$ git clone http://github.com/o8n/dotfile.git
+$ git clone http://github.com/o8n/dotfiles.git
 
-$ cd dotfile
+$ cd dotfiles
 $ ./install.sh
 ```
