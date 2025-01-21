@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # GitHubリポジトリのURL
-REPO_URL="https://raw.githubusercontent.com/o8n/dotfile/master"
+REPO_URL="https://raw.githubusercontent.com/o8n/dotfiles/master"
 
 # シンボリックリンクを作成する関数
 create_symlink() {
