@@ -1,41 +1,42 @@
 #!/bin/bash
 
-# GitHubリポジトリのURL
-REPO_URL="https://raw.githubusercontent.com/o8n/dotfiles/master"
+set -e
+
+DOTFILES_DIR="$HOME/.dotfiles"
+REPO_URL="https://github.com/o8n/dotfiles.git"
 
 # シンボリックリンクを作成する関数
 create_symlink() {
     local src=$1
     local dest=$2
-    if [ -e "$dest" ]; then
-        echo "$dest already exists. Skipping..."
-    else
-        ln -s "$src" "$dest"
-        echo "Created symlink: $dest -> $src"
+    if [ -L "$dest" ]; then
+        echo "Removing existing symlink: $dest"
+        rm "$dest"
+    elif [ -e "$dest" ]; then
+        echo "Backing up existing file: $dest -> ${dest}.backup"
+        mv "$dest" "${dest}.backup"
     fi
+    ln -s "$src" "$dest"
+    echo "Created symlink: $dest -> $src"
 }
 
-# 一時ディレクトリを作成
-TEMP_DIR=$(mktemp -d)
-cd $TEMP_DIR
+# dotfilesリポジトリをクローン
+if [ -d "$DOTFILES_DIR" ]; then
+    echo "Dotfiles directory already exists. Pulling latest changes..."
+    cd "$DOTFILES_DIR"
+    git pull
+else
+    echo "Cloning dotfiles repository..."
+    git clone "$REPO_URL" "$DOTFILES_DIR"
+fi
 
-# zshrcをダウンロードしてシンボリックリンクを作成
-curl -LO "$REPO_URL/zshrc"
-create_symlink "$TEMP_DIR/zshrc" "$HOME/.zshrc"
+# ~/.configディレクトリを作成
+mkdir -p "$HOME/.config"
 
-# tmux.confをダウンロードしてシンボリックリンクを作成
-curl -LO "$REPO_URL/tmux.conf"
-create_symlink "$TEMP_DIR/tmux.conf" "$HOME/.tmux.conf"
-
-# vimrcをダウンロードしてシンボリックリンクを作成
-curl -LO "$REPO_URL/vimrc"
-create_symlink "$TEMP_DIR/vimrc" "$HOME/.vimrc"
-
-# nvimディレクトリをダウンロードしてシンボリックリンクを作成
-mkdir -p $TEMP_DIR/nvim
-curl -LO "$REPO_URL/nvim/init.vim"
-mv init.vim nvim/
-create_symlink "$TEMP_DIR/nvim" "$HOME/.config/nvim"
+# シンボリックリンクを作成
+create_symlink "$DOTFILES_DIR/.zshrc" "$HOME/.zshrc"
+create_symlink "$DOTFILES_DIR/.vimrc" "$HOME/.vimrc"
+create_symlink "$DOTFILES_DIR/.tmux.conf" "$HOME/.tmux.conf"
+create_symlink "$DOTFILES_DIR/nvim" "$HOME/.config/nvim"
 
 echo "Dotfiles setup completed!"
-
