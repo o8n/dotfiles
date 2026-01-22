@@ -105,3 +105,17 @@ eval "$(rbenv init -)"
 export PATH="$HOME/.rbenv/bin:$PATH"
 export PATH="$HOME/.rbenv/shims:$PATH"
 export PATH="/usr/local/opt/libpq/bin:$PATH"
+
+# ============================================
+# Docker 週次クリーンアップ（ターミナル起動時）
+# ============================================
+DOCKER_PRUNE_MARKER="$HOME/.docker_last_prune"
+if [[ ! -f "$DOCKER_PRUNE_MARKER" ]] || [[ $(find "$DOCKER_PRUNE_MARKER" -mtime +7 2>/dev/null) ]]; then
+  if docker info &>/dev/null; then
+    echo "🐳 Docker cleanup (7+ days old resources)..."
+    docker system prune -f --filter "until=168h" 2>/dev/null
+    touch "$DOCKER_PRUNE_MARKER"
+  fi
+fi
+
+alias docker-clean='docker system prune -f --filter "until=168h"'
