@@ -48,6 +48,16 @@ return {
         ["]b"] = { function() require("astrocore.buffer").nav(vim.v.count1) end, desc = "Next buffer" },
         ["[b"] = { function() require("astrocore.buffer").nav(-vim.v.count1) end, desc = "Previous buffer" },
 
+        -- copy file path
+        ["<Leader>cp"] = {
+          function()
+            local path = vim.fn.expand("%")
+            vim.fn.setreg("+", path)
+            vim.notify("Copied: " .. path)
+          end,
+          desc = "Copy relative file path",
+        },
+
         -- mappings seen under group name "Buffer"
         ["<Leader>bd"] = {
           function()
