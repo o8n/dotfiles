@@ -1,3 +1,9 @@
+### git-completion
+fpath=(~/.zsh $fpath)
+zstyle ':completion:*:*:git:*' script ~/.zsh/git-completion.bash
+autoload -Uz compinit && compinit
+
+### prompt
 if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
 fi
@@ -51,8 +57,9 @@ zi light junegunn/fzf
 # single version, for OS X, Linux and Windows – so ice-mod `bpick' is used to
 # select Linux package – in this case this is actually not needed, Zinit will
 # grep operating system name and architecture automatically when there's no `bpick'.
-zi ice from"gh-r" as"program" mv"docker* -> docker-compose" bpick"*linux*"
-zi load docker/compose
+
+# zi ice from"gh-r" as"program" mv"docker* -> docker-compose" bpick"*linux*"
+# zi load docker/compose
 
 # Vim repository on GitHub – a typical source code that needs compilation – Zinit
 # can manage it for you if you like, run `./configure` and other `make`, etc.
@@ -71,6 +78,23 @@ zi light vim/vim
 # `make"install PREFIX=$ZPFX"`, if "install" wouldn't be the only default target.
 zi ice as"program" pick"$ZPFX/bin/git-*" make"PREFIX=$ZPFX"
 zi light tj/git-extras
+
+###
+### git completion
+###
+source ~/.zsh/git-prompt.sh
+fpath=(~/.zsh $fpath)
+zstyle ':completion:*:*:git:*' script ~/.zsh/git-completion.bash
+# autoload -Uz compinit && compinit
+## プロンプトのオプション表示設定
+# GIT_PS1_SHOWDIRTYSTATE=true
+# GIT_PS1_SHOWUNTRACKEDFILES=true
+# GIT_PS1_SHOWSTASHSTATE=true
+# GIT_PS1_SHOWUPSTREAM=auto
+## プロンプトの表示設定(好きなようにカスタマイズ可)
+# setopt PROMPT_SUBST ; PS1='%F{green}%n@%m%f: %F{cyan}%~%f %F{red}$(__git_ps1 "(%s)")%f
+# \$ '
+
 
 ###
 ### Open VSCode
@@ -105,6 +129,11 @@ eval "$(rbenv init -)"
 export PATH="$HOME/.rbenv/bin:$PATH"
 export PATH="$HOME/.rbenv/shims:$PATH"
 export PATH="/usr/local/opt/libpq/bin:$PATH"
+export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"
+export PATH=$HOME/.nodebrew/current/bin:$PATH
+
+# ローカル環境固有の設定（APIキーなど）
+[[ -f ~/.zshenv.local ]] && source ~/.zshenv.local
 
 # ============================================
 # Docker 週次クリーンアップ（ターミナル起動時）
@@ -119,3 +148,78 @@ if [[ ! -f "$DOCKER_PRUNE_MARKER" ]] || [[ $(find "$DOCKER_PRUNE_MARKER" -mtime 
 fi
 
 alias docker-clean='docker system prune -f --filter "until=168h"'
+
+# ============================================
+# ghq + gwq + fzf 統合設定
+# ============================================
+
+# GOPATH/bin をPATHに追加
+export PATH="$HOME/go/bin:$PATH"
+
+# ghqで管理しているリポジトリをfzfで検索してパスを返す
+function ghq-path() {
+    ghq list --full-path | fzf --preview 'ls -la {}'
+}
+
+# リポジトリを選択して移動 + tmuxセッション名を更新
+function dev() {
+    local moveto
+    moveto=$(ghq-path)
+
+    if [[ -z "${moveto}" ]]; then
+        return 0
+    fi
+
+    cd "${moveto}" || return 1
+
+    # tmux使用時はセッション名を更新
+    if [[ -n ${TMUX} ]]; then
+        local repo_name
+        repo_name="${moveto##*/}"
+        tmux rename-session "${repo_name//./-}"
+    fi
+}
+
+# gwqでworktreeを作成
+function gwq-add() {
+    local branch_name="${1}"
+    if [[ -z "${branch_name}" ]]; then
+        echo "Usage: gwq-add <branch-name>"
+        return 1
+    fi
+    gwq add -b "${branch_name}"
+}
+
+# gwqでworktreeをfzf選択して移動
+function gwq-switch() {
+    local worktree
+    worktree=$(gwq list | fzf --preview 'ls -la {}')
+
+    if [[ -z "${worktree}" ]]; then
+        return 0
+    fi
+
+    cd "${worktree}" || return 1
+}
+
+# worktreeの状態を一覧表示
+function gwq-status() {
+    gwq status
+}
+
+# worktreeを削除（fzf選択）
+function gwq-remove() {
+    local worktree
+    worktree=$(gwq list | fzf)
+
+    if [[ -z "${worktree}" ]]; then
+        return 0
+    fi
+
+    echo "Remove worktree: ${worktree}? [y/N]"
+    read -r confirm
+    if [[ "${confirm}" == "y" || "${confirm}" == "Y" ]]; then
+        gwq remove "${worktree}"
+    fi
+}
+export PATH="$HOME/.local/bin:$PATH"
