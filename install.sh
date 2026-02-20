@@ -39,4 +39,9 @@ create_symlink "$DOTFILES_DIR/.vimrc" "$HOME/.vimrc"
 create_symlink "$DOTFILES_DIR/.tmux.conf" "$HOME/.tmux.conf"
 create_symlink "$DOTFILES_DIR/nvim" "$HOME/.config/nvim"
 
+# グローバルgit hooksをインストール（AI dual review）
+if [ -f "$DOTFILES_DIR/hooks/install-hooks.sh" ]; then
+    bash "$DOTFILES_DIR/hooks/install-hooks.sh"
+fi
+
 echo "Dotfiles setup completed!"
