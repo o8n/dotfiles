@@ -1,0 +1,36 @@
+#!/bin/bash
+
+# AI Dual Review pre-commit hook
+# Runs Claude Code and Codex reviews in parallel before allowing commit.
+# Set SKIP_AI_REVIEW=1 to bypass, or use git commit --no-verify.
+
+if [ "${SKIP_AI_REVIEW:-0}" = "1" ]; then
+  exit 0
+fi
+
+HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# Chain to repo-specific pre-commit hook if it exists
+MAIN_GIT_DIR="$(git rev-parse --git-common-dir 2>/dev/null || git rev-parse --git-dir)"
+REPO_HOOK="$MAIN_GIT_DIR/hooks/pre-commit"
+if [ -f "$REPO_HOOK" ] && [ -x "$REPO_HOOK" ] && [ "$(realpath "$REPO_HOOK" 2>/dev/null)" != "$(realpath "$0" 2>/dev/null)" ]; then
+  "$REPO_HOOK" "$@"
+  REPO_HOOK_EXIT=$?
+  if [ "$REPO_HOOK_EXIT" -ne 0 ]; then
+    echo "Repository pre-commit hook failed. Commit aborted."
+    exit "$REPO_HOOK_EXIT"
+  fi
+fi
+
+# Run dual review on staged changes
+if [ -f "$HOOK_DIR/lib/dual-review.sh" ]; then
+  bash "$HOOK_DIR/lib/dual-review.sh" "STAGED" ""
+  REVIEW_EXIT=$?
+  if [ "$REVIEW_EXIT" -ne 0 ]; then
+    exit "$REVIEW_EXIT"
+  fi
+else
+  echo "Warning: dual-review.sh not found at $HOOK_DIR/lib/dual-review.sh"
+fi
+
+exit 0
