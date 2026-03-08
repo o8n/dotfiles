@@ -29,6 +29,33 @@ return {
   -- You can disable default plugins as follows:
   { "max397574/better-escape.nvim", enabled = false },
 
+  -- Markdown preview with glow.nvim (renders in terminal buffer)
+  {
+    "ellisonleao/glow.nvim",
+    cmd = "Glow",
+    ft = "markdown",
+    config = function()
+      require("glow").setup({
+        border = "rounded",       -- floating window border
+        style = "dark",           -- 'dark' or 'light'
+        pager = false,            -- use pager for long content
+        width = 120,              -- max width of window
+        height_ratio = 0.8,       -- height ratio of window
+      })
+    end,
+  },
+
+  -- Markdown inline preview (renders in same buffer)
+  {
+    "OXY2DEV/markview.nvim",
+    lazy = false,
+    ft = "markdown",
+    dependencies = {
+      "nvim-treesitter/nvim-treesitter",
+      "nvim-tree/nvim-web-devicons",
+    },
+  },
+
   -- You can also easily customize additional setup of plugins that is outside of the plugin's setup call
   {
     "L3MON4D3/LuaSnip",
@@ -68,5 +95,65 @@ return {
         Rule("a", "a", "-vim")
       )
     end,
+  },
+
+  -- Neo-tree を左側に配置
+  {
+    "nvim-neo-tree/neo-tree.nvim",
+    opts = {
+      filesystem = {
+        filtered_items = {
+          visible = true,          -- フィルタされたアイテムを薄く表示
+          hide_dotfiles = false,   -- ドットファイル（.envなど）を表示
+          hide_gitignored = false, -- gitignoreされたファイルを表示
+        },
+      },
+      window = {
+        position = "left",
+        mappings = {
+          -- Neo-tree内からTelescopeを呼び出す
+          ["<Leader>ff"] = function()
+            vim.cmd("wincmd l") -- 右のウィンドウに移動
+            require("telescope.builtin").find_files()
+          end,
+        },
+      },
+    },
+  },
+
+  -- Telescope で隠しファイル・gitignoreファイルを検索可能に
+  {
+    "nvim-telescope/telescope.nvim",
+    opts = {
+      defaults = {
+        file_ignore_patterns = {}, -- 無視パターンをクリア
+      },
+      pickers = {
+        find_files = {
+          hidden = true,           -- 隠しファイルを表示
+          no_ignore = true,        -- .gitignoreを無視
+        },
+        live_grep = {
+          additional_args = function()
+            return { "--hidden", "--no-ignore" }
+          end,
+        },
+      },
+    },
+  },
+
+  -- GitLens的なgit blame表示
+  {
+    "lewis6991/gitsigns.nvim",
+    opts = {
+      current_line_blame = true, -- 行末にblame情報を表示
+      current_line_blame_opts = {
+        virt_text = true,
+        virt_text_pos = "eol", -- 行末に表示
+        delay = 500, -- 500msの遅延後に表示
+        ignore_whitespace = false,
+      },
+      current_line_blame_formatter = "<author>, <author_time:%Y-%m-%d> - <summary>",
+    },
   },
 }
