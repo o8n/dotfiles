@@ -231,4 +231,67 @@ function gwq-remove() {
         gwq remove "${worktree}"
     fi
 }
+# ============================================
+# ECS Exec 接続 (fzf選択式)
+# ============================================
+function ecs-exec() {
+    # 1. AWSプロファイル選択
+    local profile
+    profile=$(aws configure list-profiles | fzf --prompt="AWS Profile> ")
+    if [[ -z "${profile}" ]]; then
+        return 0
+    fi
+
+    export AWS_PROFILE="${profile}"
+    eval $(aws configure export-credentials --profile "${profile}" --format env)
+    echo "✓ Profile: ${profile}"
+
+    # 2. クラスター選択
+    local cluster
+    cluster=$(aws ecs list-clusters --query 'clusterArns[*]' --output text | tr '\t' '\n' | sed 's|.*/||' | fzf --prompt="Cluster> ")
+    if [[ -z "${cluster}" ]]; then
+        return 0
+    fi
+    echo "✓ Cluster: ${cluster}"
+
+    # 3. サービス選択 → タスク特定
+    local service
+    service=$(aws ecs list-services --cluster "${cluster}" --query 'serviceArns[*]' --output text | tr '\t' '\n' | sed 's|.*/||' | fzf --prompt="Service> ")
+    if [[ -z "${service}" ]]; then
+        return 0
+    fi
+
+    local task
+    task=$(aws ecs list-tasks --cluster "${cluster}" --service-name "${service}" --desired-status RUNNING --query 'taskArns[*]' --output text | tr '\t' '\n' | sed 's|.*/||' | fzf --prompt="Task> ")
+    if [[ -z "${task}" ]]; then
+        return 0
+    fi
+    echo "✓ Task: ${task}"
+
+    # 4. コンテナ選択（複数コンテナの場合）
+    local containers container
+    containers=$(aws ecs describe-tasks --cluster "${cluster}" --tasks "${task}" --query 'tasks[0].containers[*].name' --output text | tr '\t' '\n')
+    if [[ $(echo "${containers}" | wc -l) -gt 1 ]]; then
+        container=$(echo "${containers}" | fzf --prompt="Container> ")
+    else
+        container="${containers}"
+    fi
+    if [[ -z "${container}" ]]; then
+        return 0
+    fi
+    echo "✓ Container: ${container}"
+
+    # 5. ECS Exec接続
+    echo "→ Connecting..."
+    aws ecs execute-command \
+        --cluster "${cluster}" \
+        --task "${task}" \
+        --container "${container}" \
+        --interactive \
+        --command "/bin/sh"
+}
+
+# ローカル専用設定（git管理外）
+[[ -f ~/.zshrc.local ]] && source ~/.zshrc.local
+
 export PATH="$HOME/.local/bin:$PATH"
