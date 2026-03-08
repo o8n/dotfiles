@@ -1,0 +1,137 @@
+# zeno.zsh configuration
+# ~/.config/zeno/config.yml にシンボリックリンクして使用
+
+snippets:
+  # --- git ---
+  - name: git
+    keyword: g
+    snippet: git
+
+  - name: git push
+    keyword: gp
+    snippet: git push
+
+  - name: git status
+    keyword: gst
+    snippet: git status --short --branch
+
+  - name: git commit
+    keyword: gcm
+    snippet: git commit
+
+  - name: git checkout
+    keyword: gch
+    snippet: git checkout
+
+  - name: git diff
+    keyword: gd
+    snippet: git diff
+
+  - name: git log oneline
+    keyword: glo
+    snippet: git log --oneline
+
+  - name: git add
+    keyword: ga
+    snippet: git add
+
+  - name: git add all
+    keyword: gaa
+    snippet: git add -A
+
+  - name: git pull
+    keyword: gl
+    snippet: git pull
+
+  - name: git stash
+    keyword: gsta
+    snippet: git stash
+
+  - name: git stash pop
+    keyword: gstp
+    snippet: git stash pop
+
+  - name: git branch
+    keyword: gb
+    snippet: git branch
+
+  # --- docker ---
+  - name: docker compose
+    keyword: dc
+    snippet: docker compose
+
+  - name: docker compose exec
+    keyword: dce
+    snippet: docker compose exec
+
+  - name: docker compose up
+    keyword: dcu
+    snippet: docker compose up -d
+
+  - name: docker compose down
+    keyword: dcd
+    snippet: docker compose down
+
+  - name: docker compose logs
+    keyword: dcl
+    snippet: docker compose logs -f
+
+  # --- zsh ---
+  - name: edit zshrc
+    keyword: vz
+    snippet: vim ~/.zshrc
+
+  - name: source zshrc
+    keyword: sz
+    snippet: source ~/.zshrc
+
+  # --- docker cleanup ---
+  - name: docker cleanup
+    keyword: docker-clean
+    snippet: docker system prune -f --filter "until=168h"
+
+  # --- global snippets (コマンドの後ろで展開) ---
+  - name: null redirect
+    keyword: "null"
+    snippet: ">/dev/null 2>&1"
+    context:
+      lbuffer: '.+\s'
+
+  - name: pipe less
+    keyword: L
+    snippet: "| less"
+    context:
+      lbuffer: '.+\s'
+
+  - name: pipe grep
+    keyword: G
+    snippet: "| grep"
+    context:
+      lbuffer: '.+\s'
+
+  - name: pipe head
+    keyword: H
+    snippet: "| head"
+    context:
+      lbuffer: '.+\s'
+
+  - name: pipe tail
+    keyword: T
+    snippet: "| tail"
+    context:
+      lbuffer: '.+\s'
+
+completions:
+  - name: chdir
+    patterns:
+      - "^cd $"
+    sourceCommand: "find . -path '*/.git' -prune -o -maxdepth 5 -type d -print"
+    options:
+      --prompt: "'Chdir> '"
+      --preview: "ls -la {}"
+
+history:
+  defaultScope: directory
+  keymap:
+    toggleScope: ctrl-r
+    togglePreview: "?"

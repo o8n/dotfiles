@@ -11,16 +11,3 @@ vim.api.nvim_create_autocmd({ "TextChanged", "InsertLeave", "FocusLost" }, {
     end
   end,
 })
-
--- Set up custom filetypes
--- vim.filetype.add {
-  -- extension = {
-    -- foo = "fooscript",
-  -- },
-  -- filename = {
-    -- ["Foofile"] = "fooscript",
-  -- },
-  -- pattern = {
-    -- ["~/%.config/foo/.*"] = "fooscript",
-  -- },
--- }

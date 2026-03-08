@@ -41,7 +41,6 @@ zinit for \
   zsh-users/zsh-autosuggestions \
     light-mode \
   zdharma-continuum/fast-syntax-highlighting \
-  zdharma-continuum/history-search-multi-word \
     light-mode \
     pick"async.zsh" \
     src"pure.zsh" \
@@ -110,21 +109,33 @@ function code {
     fi
 }
 
-###
-### alias
-###
-# docker
-alias dc='docker-compose'
-alias dce='docker-compose exec'
-# git
-alias g='git'
-alias gp='git push'
-alias gst='git status'
-alias gcm='git commit'
-alias gch='git checkout'
-# zsh
-alias vz='vim ~/.zshrc'
-alias sz='source ~/.zshrc'
+# ============================================
+# zeno.zsh (abbreviation + smart history)
+# ============================================
+export ZENO_HOME="$HOME/.config/zeno"
+
+zinit ice lucid depth"1" blockf
+zinit light yuki-yano/zeno.zsh
+
+# キーバインド
+bindkey ' '   zeno-auto-snippet                   # Space: abbr展開
+bindkey '^m'  zeno-auto-snippet-and-accept-line   # Enter: 展開&実行
+bindkey '^i'  zeno-completion                     # Tab: 補完
+bindkey '^x ' zeno-insert-space                   # Ctrl-X Space: 空白挿入（展開回避）
+bindkey '^xs' zeno-insert-snippet                 # Ctrl-X S: スニペット選択
+
+# fzf履歴検索 (Ctrl-R)
+function fzf-history-widget() {
+  local selected
+  selected=$(fc -rl 1 | awk '{$1=""; print substr($0,2)}' | fzf --no-sort --query "${LBUFFER}")
+  if [[ -n "$selected" ]]; then
+    LBUFFER="$selected"
+    RBUFFER=""
+  fi
+  zle reset-prompt
+}
+zle -N fzf-history-widget
+bindkey '^r' fzf-history-widget
 eval "$(rbenv init -)"
 export PATH="$HOME/.rbenv/bin:$PATH"
 export PATH="$HOME/.rbenv/shims:$PATH"
@@ -146,8 +157,6 @@ if [[ ! -f "$DOCKER_PRUNE_MARKER" ]] || [[ $(find "$DOCKER_PRUNE_MARKER" -mtime 
     touch "$DOCKER_PRUNE_MARKER"
   fi
 fi
-
-alias docker-clean='docker system prune -f --filter "until=168h"'
 
 # ============================================
 # ghq + gwq + fzf 統合設定
