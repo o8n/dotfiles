@@ -1,4 +1,3 @@
----@type LazySpec
 return {
   "akinsho/toggleterm.nvim",
   cmd = { "ToggleTerm", "ToggleTermToggleAll" },
@@ -7,27 +6,19 @@ return {
     persist_size = true,
     persist_mode = true,
   },
-  specs = {
-    {
-      "AstroNvim/astrocore",
-      opts = function(_, opts)
-        local maps = opts.mappings
-
-        for i = 1, 3 do
-          maps.n[("<Leader>t%d"):format(i)] = {
-            ("<Cmd>%dToggleTerm size=15 direction=horizontal<CR>"):format(i),
-            desc = ("Terminal #%d"):format(i),
-          }
-          maps.t[("<Leader>t%d"):format(i)] = {
-            ("<Cmd>%dToggleTerm size=15 direction=horizontal<CR>"):format(i),
-            desc = ("Terminal #%d"):format(i),
-          }
-        end
-
-        maps.n["<Leader>tA"] = { "<Cmd>ToggleTermToggleAll<CR>", desc = "Toggle all terminals" }
-        maps.n["<Leader>th"] = { "<Cmd>ToggleTerm size=15 direction=horizontal<CR>", desc = "Horizontal terminal" }
-        maps.t["<Esc><Esc>"] = { "<C-\\><C-n>", desc = "Exit terminal mode" }
-      end,
-    },
-  },
+  keys = (function()
+    local keys = {}
+    for i = 1, 3 do
+      table.insert(keys, {
+        ("<Leader>t%d"):format(i),
+        ("<Cmd>%dToggleTerm size=15 direction=horizontal<CR>"):format(i),
+        desc = ("Terminal #%d"):format(i),
+        mode = { "n", "t" },
+      })
+    end
+    table.insert(keys, { "<Leader>tA", "<Cmd>ToggleTermToggleAll<CR>", desc = "Toggle all terminals" })
+    table.insert(keys, { "<Leader>th", "<Cmd>ToggleTerm size=15 direction=horizontal<CR>", desc = "Horizontal terminal" })
+    table.insert(keys, { "<Esc><Esc>", "<C-\\><C-n>", mode = "t", desc = "Exit terminal mode" })
+    return keys
+  end)(),
 }

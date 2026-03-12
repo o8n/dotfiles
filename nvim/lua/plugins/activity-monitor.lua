@@ -18,13 +18,14 @@
 ---@field free_mem_gb number
 ---@field mem_percent number
 
--- Module-level cache for statusline (matches gwq worktree_cache pattern)
-local stats_cache = {
+-- Use global cache shared with statusline.lua
+_G._activity_stats_cache = _G._activity_stats_cache or {
   cpu_total = 0,
   mem_percent = 0,
   top_process = "",
   updated_at = 0,
 }
+local stats_cache = _G._activity_stats_cache
 
 local refresh_timer = nil
 local CACHE_TTL_SEC = 10
@@ -90,17 +91,17 @@ local function fetch_vm_stat(callback)
         if val then return tonumber((val:gsub("%.", ""))) or 0 end
         return 0
       end
-      local free = extract "Pages free:%s+(%d+%.)"
-      local active = extract "Pages active:%s+(%d+%.)"
-      local wired = extract "Pages wired down:%s+(%d+%.)"
+      local free = extract("Pages free:%s+(%d+%.)")
+      local active = extract("Pages active:%s+(%d+%.)")
+      local wired = extract("Pages wired down:%s+(%d+%.)")
 
       local used_bytes = (active + wired) * PAGE_SIZE
-      callback {
+      callback({
         total_mem_gb = TOTAL_MEM / (1024 ^ 3),
         used_mem_gb = used_bytes / (1024 ^ 3),
         free_mem_gb = (TOTAL_MEM - used_bytes) / (1024 ^ 3),
         mem_percent = (used_bytes / TOTAL_MEM) * 100,
-      }
+      })
     end)
   end)
 end
@@ -152,7 +153,7 @@ local function fetch_processes(callback)
       local processes = {}
       for i = 2, #lines do
         local pid, cpu, mem, rss, user, comm =
-          lines[i]:match "^%s*(%d+)%s+([%d.]+)%s+([%d.]+)%s+(%d+)%s+(%S+)%s+(.+)$"
+          lines[i]:match("^%s*(%d+)%s+([%d.]+)%s+([%d.]+)%s+(%d+)%s+(%S+)%s+(.+)$")
         if pid then
           local p = {
             pid = tonumber(pid),
@@ -162,7 +163,7 @@ local function fetch_processes(callback)
             user = user,
             comm = vim.fn.fnamemodify(vim.trim(comm), ":t"),
             full_cmd = vim.trim(comm),
-            is_killable = (user == os.getenv "USER"),
+            is_killable = (user == os.getenv("USER")),
             recommendation = nil,
           }
           p.recommendation = compute_recommendation(p)
@@ -182,8 +183,8 @@ end
 ---@param signal number
 ---@param reopen_fn fun()
 local function kill_process(prompt_bufnr, signal, reopen_fn)
-  local action_state = require "telescope.actions.state"
-  local actions = require "telescope.actions"
+  local action_state = require("telescope.actions.state")
+  local actions = require("telescope.actions")
 
   local selection = action_state.get_selected_entry()
   if not selection then return end
@@ -230,13 +231,13 @@ local function process_picker(opts, sort_by)
   opts = opts or {}
   sort_by = sort_by or "cpu"
 
-  local pickers = require "telescope.pickers"
-  local finders = require "telescope.finders"
+  local pickers = require("telescope.pickers")
+  local finders = require("telescope.finders")
   local conf = require("telescope.config").values
-  local actions = require "telescope.actions"
-  local action_state = require "telescope.actions.state"
-  local entry_display = require "telescope.pickers.entry_display"
-  local previewers = require "telescope.previewers"
+  local actions = require("telescope.actions")
+  local action_state = require("telescope.actions.state")
+  local entry_display = require("telescope.pickers.entry_display")
+  local previewers = require("telescope.previewers")
 
   fetch_processes(function(processes)
     if not processes or #processes == 0 then
@@ -257,7 +258,7 @@ local function process_picker(opts, sort_by)
     stats_cache.top_process = processes[1] and processes[1].comm or ""
     stats_cache.updated_at = os.clock()
 
-    local displayer = entry_display.create {
+    local displayer = entry_display.create({
       separator = " ",
       items = {
         { width = 2 },
@@ -268,12 +269,12 @@ local function process_picker(opts, sort_by)
         { width = 12 },
         { remaining = true },
       },
-    }
+    })
 
     pickers
       .new(opts, {
         prompt_title = "Activity Monitor (sort: " .. sort_by .. ")",
-        finder = finders.new_table {
+        finder = finders.new_table({
           results = processes,
           entry_maker = function(proc)
             return {
@@ -287,7 +288,7 @@ local function process_picker(opts, sort_by)
                 local mem_hl = p.mem > 5 and "DiagnosticError"
                   or p.mem > 2 and "DiagnosticWarn"
                   or "TelescopeResultsNumber"
-                return displayer {
+                return displayer({
                   { indicator, p.recommendation and "DiagnosticWarn" or "Normal" },
                   { tostring(p.pid), "TelescopeResultsComment" },
                   { string.format("%.1f%%", p.cpu), cpu_hl },
@@ -295,14 +296,14 @@ local function process_picker(opts, sort_by)
                   { format_rss(p.rss), "TelescopeResultsNumber" },
                   { p.user, "TelescopeResultsComment" },
                   { p.comm, "TelescopeResultsIdentifier" },
-                }
+                })
               end,
               ordinal = proc.comm .. " " .. tostring(proc.pid) .. " " .. proc.user,
             }
           end,
-        },
+        }),
         sorter = conf.generic_sorter(opts),
-        previewer = previewers.new_buffer_previewer {
+        previewer = previewers.new_buffer_previewer({
           title = "Process Details",
           define_preview = function(self, entry)
             local p = entry.value
@@ -326,7 +327,7 @@ local function process_picker(opts, sort_by)
             end
             vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, lines)
           end,
-        },
+        }),
         attach_mappings = function(prompt_bufnr, map)
           actions.select_default:replace(function()
             local selection = action_state.get_selected_entry()
@@ -375,13 +376,13 @@ end
 ---@param opts? table
 flagged_picker = function(opts)
   opts = opts or {}
-  local pickers = require "telescope.pickers"
-  local finders = require "telescope.finders"
+  local pickers = require("telescope.pickers")
+  local finders = require("telescope.finders")
   local conf = require("telescope.config").values
-  local actions = require "telescope.actions"
-  local action_state = require "telescope.actions.state"
-  local entry_display = require "telescope.pickers.entry_display"
-  local previewers = require "telescope.previewers"
+  local actions = require("telescope.actions")
+  local action_state = require("telescope.actions.state")
+  local entry_display = require("telescope.pickers.entry_display")
+  local previewers = require("telescope.previewers")
 
   fetch_processes(function(processes)
     local flagged = vim.tbl_filter(function(p) return p.recommendation ~= nil end, processes)
@@ -390,7 +391,7 @@ flagged_picker = function(opts)
       return
     end
 
-    local displayer = entry_display.create {
+    local displayer = entry_display.create({
       separator = " ",
       items = {
         { width = 7 },
@@ -400,33 +401,33 @@ flagged_picker = function(opts)
         { width = 20 },
         { remaining = true },
       },
-    }
+    })
 
     pickers
       .new(opts, {
         prompt_title = "Flagged Processes (" .. #flagged .. " found)",
-        finder = finders.new_table {
+        finder = finders.new_table({
           results = flagged,
           entry_maker = function(proc)
             return {
               value = proc,
               display = function(entry)
                 local p = entry.value
-                return displayer {
+                return displayer({
                   { tostring(p.pid), "TelescopeResultsComment" },
                   { string.format("%.1f%%", p.cpu), "DiagnosticWarn" },
                   { string.format("%.1f%%", p.mem), "DiagnosticWarn" },
                   { format_rss(p.rss), "TelescopeResultsNumber" },
                   { p.comm, "TelescopeResultsIdentifier" },
                   { p.recommendation or "", "DiagnosticHint" },
-                }
+                })
               end,
               ordinal = proc.comm .. " " .. tostring(proc.pid),
             }
           end,
-        },
+        }),
         sorter = conf.generic_sorter(opts),
-        previewer = previewers.new_buffer_previewer {
+        previewer = previewers.new_buffer_previewer({
           title = "Process Details",
           define_preview = function(self, entry)
             local p = entry.value
@@ -443,7 +444,7 @@ flagged_picker = function(opts)
             }
             vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, lines)
           end,
-        },
+        }),
         attach_mappings = function(prompt_bufnr, map)
           actions.select_default:replace(function()
             local selection = action_state.get_selected_entry()
@@ -531,99 +532,59 @@ local function stop_stats_refresh()
   end
 end
 
--- ── Plugin Specs ─────────────────────────────────────────────────
+-- ── Plugin Spec ─────────────────────────────────────────────────
 
 ---@type LazySpec
 return {
   {
-    "AstroNvim/astrocore",
-    ---@type AstroCoreOpts
-    opts = function(_, opts)
-      local maps = opts.mappings or {}
-
-      maps.n["<Leader>a"] = { desc = "Activity Monitor" }
-      maps.n["<Leader>aa"] = { function() process_picker() end, desc = "Process list (CPU)" }
-      maps.n["<Leader>am"] = { function() process_picker({}, "mem") end, desc = "Process list (Memory)" }
-      maps.n["<Leader>af"] = { function() flagged_picker() end, desc = "Flagged processes" }
-      maps.n["<Leader>as"] = { function() show_system_summary() end, desc = "System summary" }
-
-      opts.commands = opts.commands or {}
-      opts.commands.ActivityMonitor = { function() process_picker() end, desc = "Open activity monitor" }
-      opts.commands.ActivitySummary = {
-        function() show_system_summary() end,
-        desc = "Show system resource summary",
-      }
-      opts.commands.ActivityKill = {
-        function(cmd)
-          local pid = tonumber(cmd.args)
-          if not pid then
-            vim.notify("Usage: :ActivityKill <PID>", vim.log.levels.WARN)
-            return
-          end
-          vim.ui.input({ prompt = "Kill PID " .. pid .. "? (y/N): " }, function(input)
-            if input and input:lower() == "y" then
-              vim.system({ "kill", "-15", tostring(pid) }, { text = true }, function(result)
-                vim.schedule(function()
-                  if result.code == 0 then
-                    vim.notify("Killed PID " .. pid)
-                  else
-                    vim.notify("Failed: " .. (result.stderr or ""), vim.log.levels.ERROR)
-                  end
-                end)
-              end)
-            end
+    "nvim-telescope/telescope.nvim",
+    keys = {
+      { "<Leader>a", "", desc = "Activity Monitor" },
+      { "<Leader>aa", function() process_picker() end, desc = "Process list (CPU)" },
+      { "<Leader>am", function() process_picker({}, "mem") end, desc = "Process list (Memory)" },
+      { "<Leader>af", function() flagged_picker() end, desc = "Flagged processes" },
+      { "<Leader>as", function() show_system_summary() end, desc = "System summary" },
+    },
+    init = function()
+    -- User commands
+    vim.api.nvim_create_user_command("ActivityMonitor", function() process_picker() end, { desc = "Open activity monitor" })
+    vim.api.nvim_create_user_command("ActivitySummary", function() show_system_summary() end, { desc = "Show system resource summary" })
+    vim.api.nvim_create_user_command("ActivityKill", function(cmd)
+      local pid = tonumber(cmd.args)
+      if not pid then
+        vim.notify("Usage: :ActivityKill <PID>", vim.log.levels.WARN)
+        return
+      end
+      vim.ui.input({ prompt = "Kill PID " .. pid .. "? (y/N): " }, function(input)
+        if input and input:lower() == "y" then
+          vim.system({ "kill", "-15", tostring(pid) }, { text = true }, function(result)
+            vim.schedule(function()
+              if result.code == 0 then
+                vim.notify("Killed PID " .. pid)
+              else
+                vim.notify("Failed: " .. (result.stderr or ""), vim.log.levels.ERROR)
+              end
+            end)
           end)
-        end,
-        nargs = 1,
-        desc = "Kill process by PID",
-      }
+        end
+      end)
+    end, { nargs = 1, desc = "Kill process by PID" })
 
-      opts.autocmds = opts.autocmds or {}
-      opts.autocmds.activity_monitor_refresh = {
-        {
-          event = "VimEnter",
-          desc = "Start activity monitor stats refresh",
-          callback = function()
-            fetch_total_memory(function(bytes) TOTAL_MEM = bytes end)
-            start_stats_refresh()
-          end,
-        },
-        {
-          event = "VimLeavePre",
-          desc = "Stop activity monitor stats refresh",
-          callback = stop_stats_refresh,
-        },
-      }
-    end,
-  },
-
-  {
-    "rebelot/heirline.nvim",
-    opts = function(_, opts)
-      if not opts.statusline then return end
-
-      local activity_component = {
-        condition = function() return stats_cache.updated_at > 0 end,
-        provider = function()
-          return string.format(" CPU:%.0f%% Mem:%.0f%% ", stats_cache.cpu_total, stats_cache.mem_percent)
-        end,
-        hl = function()
-          if stats_cache.mem_percent > 80 or stats_cache.cpu_total > 200 then
-            return { fg = "#ed8796", bold = true }
-          elseif stats_cache.mem_percent > 60 or stats_cache.cpu_total > 100 then
-            return { fg = "#f5a97f", bold = true }
-          else
-            return { fg = "#a6da95" }
-          end
-        end,
-        on_click = {
-          callback = function() process_picker() end,
-          name = "activity_monitor_click",
-        },
-      }
-
-      local insert_pos = math.max(#opts.statusline, 1)
-      table.insert(opts.statusline, insert_pos, activity_component)
-    end,
+    -- Autocmds for background refresh
+    local group = vim.api.nvim_create_augroup("activity_monitor_refresh", { clear = true })
+    vim.api.nvim_create_autocmd("VimEnter", {
+      group = group,
+      desc = "Start activity monitor stats refresh",
+      callback = function()
+        fetch_total_memory(function(bytes) TOTAL_MEM = bytes end)
+        start_stats_refresh()
+      end,
+    })
+    vim.api.nvim_create_autocmd("VimLeavePre", {
+      group = group,
+      desc = "Stop activity monitor stats refresh",
+      callback = stop_stats_refresh,
+    })
+  end,
   },
 }

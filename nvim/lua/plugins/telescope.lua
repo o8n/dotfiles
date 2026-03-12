@@ -1,36 +1,46 @@
----@type LazySpec
+-- Telescope: fuzzy finder
 return {
   "nvim-telescope/telescope.nvim",
-  opts = function(_, opts)
-    local ignore_patterns = {
-      -- Version control
-      "^%.git[/\\]",
-      "[/\\]%.git[/\\]",
-      -- Dependencies
-      "[/\\]node_modules[/\\]",
-      "[/\\]vendor[/\\]",
-      -- Build artifacts
-      "[/\\]dist[/\\]",
-      "[/\\]build[/\\]",
-      -- Python
-      "[/\\]%.venv[/\\]",
-      "[/\\]__pycache__[/\\]",
-      "%.pyc$",
-      -- Cache
-      "[/\\]%.cache[/\\]",
-    }
-
-    opts.defaults = vim.tbl_deep_extend("force", opts.defaults or {}, {
-      file_ignore_patterns = ignore_patterns,
-    })
-
-    opts.pickers = vim.tbl_deep_extend("force", opts.pickers or {}, {
+  dependencies = {
+    "nvim-lua/plenary.nvim",
+    { "nvim-telescope/telescope-fzf-native.nvim", build = "make" },
+  },
+  cmd = "Telescope",
+  keys = {
+    { "<Leader>fb", "<Cmd>Telescope buffers<CR>", desc = "Find buffers" },
+    { "<Leader>fh", "<Cmd>Telescope help_tags<CR>", desc = "Find help" },
+    { "<Leader>fk", "<Cmd>Telescope keymaps<CR>", desc = "Find keymaps" },
+    { "<Leader>fo", "<Cmd>Telescope oldfiles<CR>", desc = "Find recent files" },
+    { "<Leader>fd", "<Cmd>Telescope diagnostics<CR>", desc = "Find diagnostics" },
+    { "<Leader>fr", "<Cmd>Telescope resume<CR>", desc = "Resume search" },
+  },
+  opts = {
+    defaults = {
+      file_ignore_patterns = {
+        "^%.git[/\\]",
+        "[/\\]%.git[/\\]",
+        "[/\\]node_modules[/\\]",
+        "[/\\]vendor[/\\]",
+        "[/\\]dist[/\\]",
+        "[/\\]build[/\\]",
+        "[/\\]%.venv[/\\]",
+        "[/\\]__pycache__[/\\]",
+        "%.pyc$",
+        "[/\\]%.cache[/\\]",
+      },
+    },
+    pickers = {
       find_files = {
         hidden = true,
       },
       live_grep = {
         additional_args = { "--hidden" },
       },
-    })
+    },
+  },
+  config = function(_, opts)
+    local telescope = require("telescope")
+    telescope.setup(opts)
+    pcall(telescope.load_extension, "fzf")
   end,
 }

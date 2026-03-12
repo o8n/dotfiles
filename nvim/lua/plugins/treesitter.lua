@@ -1,14 +1,35 @@
--- Customize Treesitter
-
----@type LazySpec
 return {
   "nvim-treesitter/nvim-treesitter",
-  opts = function(_, opts)
-    -- add more things to the ensure_installed table protecting against community packs modifying it
-    opts.ensure_installed = require("astrocore").list_insert_unique(opts.ensure_installed, {
+  build = ":TSUpdate",
+  event = { "BufReadPost", "BufNewFile" },
+  opts = {
+    ensure_installed = {
       "lua",
       "vim",
+      "vimdoc",
       "ruby",
-    })
+      "go",
+      "gomod",
+      "gosum",
+      "typescript",
+      "javascript",
+      "tsx",
+      "html",
+      "css",
+      "json",
+      "yaml",
+      "toml",
+      "markdown",
+      "markdown_inline",
+      "bash",
+      "regex",
+      "query",
+    },
+    highlight = { enable = true },
+    indent = { enable = true },
+    auto_install = true,
+  },
+  config = function(_, opts)
+    require("nvim-treesitter.configs").setup(opts)
   end,
 }
