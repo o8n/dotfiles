@@ -1,14 +1,15 @@
--- gwq (Git Worktree Manager) + ghq integration for AstroNvim v4
+-- gwq (Git Worktree Manager) + ghq integration
 -- Provides Telescope pickers, commands, session integration, and statusline indicator
 
-local gwq_bin = vim.fn.expand "$HOME/go/bin/gwq"
+local gwq_bin = vim.fn.expand("$HOME/go/bin/gwq")
 local ghq_bin = "/opt/homebrew/bin/ghq"
 
--- Worktree info cache for statusline (module-level)
-local worktree_cache = {
+-- Use global cache shared with statusline.lua
+_G._gwq_worktree_cache = _G._gwq_worktree_cache or {
   branch = nil,
   is_worktree = false,
 }
+local worktree_cache = _G._gwq_worktree_cache
 
 ---Run a shell command asynchronously and return parsed JSON via callback
 ---@param cmd string
@@ -60,14 +61,13 @@ local function switch_to_directory(target_path)
   -- Save current session
   local resession_ok, resession = pcall(require, "resession")
   if resession_ok then
-    local buf_utils = require "astrocore.buffer"
-    if buf_utils.is_valid_session() then
+    if vim.fn.expand("%") ~= "" then
       resession.save(cwd, { dir = "dirsession", notify = false })
     end
   end
 
   -- Close all buffers
-  vim.cmd "silent! %bdelete!"
+  vim.cmd("silent! %bdelete!")
 
   -- Change directory (tab-local)
   vim.cmd("tcd " .. vim.fn.fnameescape(target_path))
@@ -80,16 +80,17 @@ local function switch_to_directory(target_path)
 
   -- If no session, open Neo-tree or a blank buffer
   if not loaded then
-    if require("astrocore").is_available "neo-tree.nvim" then
-      vim.cmd "Neotree focus"
+    local neotree_ok = pcall(require, "neo-tree")
+    if neotree_ok then
+      vim.cmd("Neotree focus")
     else
-      vim.cmd "edit ."
+      vim.cmd("edit .")
     end
   end
 
   -- Refresh worktree cache and notify
   vim.api.nvim_exec_autocmds("User", { pattern = "GwqWorktreeChanged" })
-  vim.notify("Switched to: " .. target_path:gsub("^" .. vim.pesc(os.getenv "HOME"), "~"))
+  vim.notify("Switched to: " .. target_path:gsub("^" .. vim.pesc(os.getenv("HOME")), "~"))
 end
 
 ---Refresh worktree info cache (async)
@@ -98,23 +99,29 @@ local function refresh_worktree_info()
   vim.system({ gwq_bin, "list", "--json" }, { text = true }, function(result)
     vim.schedule(function()
       if result.code ~= 0 then
-        worktree_cache = { branch = nil, is_worktree = false }
+        worktree_cache.branch = nil
+        worktree_cache.is_worktree = false
         return
       end
       local ok, worktrees = pcall(vim.json.decode, result.stdout)
       if not ok or not worktrees then
-        worktree_cache = { branch = nil, is_worktree = false }
+        worktree_cache.branch = nil
+        worktree_cache.is_worktree = false
         return
       end
       local found = false
       for _, wt in ipairs(worktrees) do
         if wt.path == cwd then
-          worktree_cache = { branch = wt.branch, is_worktree = not wt.is_main }
+          worktree_cache.branch = wt.branch
+          worktree_cache.is_worktree = not wt.is_main
           found = true
           break
         end
       end
-      if not found then worktree_cache = { branch = nil, is_worktree = false } end
+      if not found then
+        worktree_cache.branch = nil
+        worktree_cache.is_worktree = false
+      end
     end)
   end)
 end
@@ -123,11 +130,11 @@ end
 
 local function ghq_repo_picker(opts)
   opts = opts or {}
-  local pickers = require "telescope.pickers"
-  local finders = require "telescope.finders"
+  local pickers = require("telescope.pickers")
+  local finders = require("telescope.finders")
   local conf = require("telescope.config").values
-  local actions = require "telescope.actions"
-  local action_state = require "telescope.actions.state"
+  local actions = require("telescope.actions")
+  local action_state = require("telescope.actions.state")
 
   run_cmd_lines(ghq_bin, { "list", "--full-path" }, function(repos)
     if not repos or #repos == 0 then
@@ -135,13 +142,13 @@ local function ghq_repo_picker(opts)
       return
     end
 
-    local home = os.getenv "HOME"
+    local home = os.getenv("HOME")
     local ghq_root = home .. "/ghq/"
 
     pickers
       .new(opts, {
         prompt_title = "ghq Repositories",
-        finder = finders.new_table {
+        finder = finders.new_table({
           results = repos,
           entry_maker = function(repo_path)
             local display = repo_path:gsub("^" .. vim.pesc(home), "~")
@@ -152,7 +159,7 @@ local function ghq_repo_picker(opts)
               ordinal = relative,
             }
           end,
-        },
+        }),
         sorter = conf.generic_sorter(opts),
         attach_mappings = function(prompt_bufnr, _)
           actions.select_default:replace(function()
@@ -169,12 +176,12 @@ end
 
 local function gwq_worktree_picker(opts)
   opts = opts or {}
-  local pickers = require "telescope.pickers"
-  local finders = require "telescope.finders"
+  local pickers = require("telescope.pickers")
+  local finders = require("telescope.finders")
   local conf = require("telescope.config").values
-  local actions = require "telescope.actions"
-  local action_state = require "telescope.actions.state"
-  local entry_display = require "telescope.pickers.entry_display"
+  local actions = require("telescope.actions")
+  local action_state = require("telescope.actions.state")
+  local entry_display = require("telescope.pickers.entry_display")
 
   run_cmd_json(gwq_bin, { "list", "--json" }, function(worktrees)
     if not worktrees or #worktrees == 0 then
@@ -182,7 +189,7 @@ local function gwq_worktree_picker(opts)
       return
     end
 
-    local displayer = entry_display.create {
+    local displayer = entry_display.create({
       separator = " ",
       items = {
         { width = 2 },
@@ -190,15 +197,15 @@ local function gwq_worktree_picker(opts)
         { width = 8 },
         { remaining = true },
       },
-    }
+    })
 
     local cwd = vim.fn.getcwd()
-    local home = os.getenv "HOME"
+    local home = os.getenv("HOME")
 
     pickers
       .new(opts, {
         prompt_title = "gwq Worktrees",
-        finder = finders.new_table {
+        finder = finders.new_table({
           results = worktrees,
           entry_maker = function(wt)
             return {
@@ -208,17 +215,17 @@ local function gwq_worktree_picker(opts)
                 local indicator = w.path == cwd and ">" or " "
                 local short_hash = w.commit_hash:sub(1, 7)
                 local display_path = w.path:gsub("^" .. vim.pesc(home), "~")
-                return displayer {
+                return displayer({
                   { indicator, "TelescopeResultsComment" },
                   { w.branch, "TelescopeResultsIdentifier" },
                   { short_hash, "TelescopeResultsNumber" },
                   { display_path, "TelescopeResultsComment" },
-                }
+                })
               end,
               ordinal = wt.branch .. " " .. wt.path,
             }
           end,
-        },
+        }),
         sorter = conf.generic_sorter(opts),
         attach_mappings = function(prompt_bufnr, map)
           actions.select_default:replace(function()
@@ -240,7 +247,6 @@ local function gwq_worktree_picker(opts)
                   vim.schedule(function()
                     if result.code == 0 then
                       vim.notify("Removed: " .. wt.branch)
-                      -- Re-open picker to refresh
                       actions.close(prompt_bufnr)
                       gwq_worktree_picker(opts)
                     else
@@ -260,12 +266,12 @@ end
 
 local function gwq_status_picker(opts)
   opts = opts or {}
-  local pickers = require "telescope.pickers"
-  local finders = require "telescope.finders"
+  local pickers = require("telescope.pickers")
+  local finders = require("telescope.finders")
   local conf = require("telescope.config").values
-  local actions = require "telescope.actions"
-  local action_state = require "telescope.actions.state"
-  local entry_display = require "telescope.pickers.entry_display"
+  local actions = require("telescope.actions")
+  local action_state = require("telescope.actions.state")
+  local entry_display = require("telescope.pickers.entry_display")
 
   run_cmd_json(gwq_bin, { "status", "--json", "--no-fetch" }, function(data)
     if not data or not data.worktrees then
@@ -273,7 +279,7 @@ local function gwq_status_picker(opts)
       return
     end
 
-    local displayer = entry_display.create {
+    local displayer = entry_display.create({
       separator = " ",
       items = {
         { width = 10 },
@@ -281,7 +287,7 @@ local function gwq_status_picker(opts)
         { width = 8 },
         { remaining = true },
       },
-    }
+    })
 
     local status_hl = {
       clean = "DiagnosticOk",
@@ -289,7 +295,7 @@ local function gwq_status_picker(opts)
       stale = "DiagnosticError",
     }
 
-    local home = os.getenv "HOME"
+    local home = os.getenv("HOME")
     local summary = data.summary or {}
     local title = string.format(
       "gwq Status (Total: %s, Modified: %s, Clean: %s)",
@@ -301,7 +307,7 @@ local function gwq_status_picker(opts)
     pickers
       .new(opts, {
         prompt_title = title,
-        finder = finders.new_table {
+        finder = finders.new_table({
           results = data.worktrees,
           entry_maker = function(wt)
             return {
@@ -315,17 +321,17 @@ local function gwq_status_picker(opts)
                 if (gs.staged or 0) > 0 then table.insert(changes, "S:" .. gs.staged) end
                 local changes_str = #changes > 0 and table.concat(changes, " ") or ""
                 local display_path = w.path:gsub("^" .. vim.pesc(home), "~")
-                return displayer {
+                return displayer({
                   { w.status or "unknown", status_hl[w.status] or "Normal" },
                   { w.branch, "TelescopeResultsIdentifier" },
                   { changes_str, "DiagnosticWarn" },
                   { display_path, "TelescopeResultsComment" },
-                }
+                })
               end,
               ordinal = wt.branch .. " " .. (wt.status or "") .. " " .. wt.path,
             }
           end,
-        },
+        }),
         sorter = conf.generic_sorter(opts),
         attach_mappings = function(prompt_bufnr, _)
           actions.select_default:replace(function()
@@ -358,7 +364,6 @@ local function gwq_add(branch_name)
         return
       end
       vim.notify("Worktree created: " .. branch_name)
-      -- Get the new worktree path
       local path_result = vim.system({ gwq_bin, "get", branch_name }, { text = true }):wait()
       if path_result.code == 0 then
         local path = vim.trim(path_result.stdout)
@@ -370,77 +375,47 @@ local function gwq_add(branch_name)
   end)
 end
 
--- ── Plugin Specs ───────────────────────────────────────────────────
+-- ── Plugin Spec ────────────────────────────────────────────────────
 
 ---@type LazySpec
 return {
-  -- Keymaps, commands, and autocmds via astrocore
   {
-    "AstroNvim/astrocore",
-    ---@type AstroCoreOpts
-    opts = function(_, opts)
-      local maps = opts.mappings or {}
-
-      -- Worktree group
-      maps.n["<Leader>gw"] = { desc = "Worktrees" }
-      maps.n["<Leader>gww"] = { function() gwq_worktree_picker() end, desc = "Switch worktree" }
-      maps.n["<Leader>gwl"] = { function() gwq_worktree_picker() end, desc = "List worktrees" }
-      maps.n["<Leader>gwa"] = { function() gwq_add() end, desc = "Add worktree" }
-      maps.n["<Leader>gwr"] = { function() gwq_worktree_picker() end, desc = "Remove worktree (C-d)" }
-      maps.n["<Leader>gws"] = { function() gwq_status_picker() end, desc = "Worktree status" }
-
-      -- ghq repositories
-      maps.n["<Leader>fp"] = { function() ghq_repo_picker() end, desc = "Find project (ghq)" }
-
-      -- User commands
-      opts.commands = opts.commands or {}
-      opts.commands.GwqSwitch = { function() gwq_worktree_picker() end, desc = "Switch gwq worktree" }
-      opts.commands.GwqAdd = {
-        function(cmd) gwq_add(cmd.args ~= "" and cmd.args or nil) end,
-        nargs = "?",
-        desc = "Create gwq worktree",
-      }
-      opts.commands.GwqRemove = { function() gwq_worktree_picker() end, desc = "Remove gwq worktree" }
-      opts.commands.GwqStatus = { function() gwq_status_picker() end, desc = "Show gwq worktree status" }
-      opts.commands.GhqList = { function() ghq_repo_picker() end, desc = "Browse ghq repositories" }
+    "nvim-telescope/telescope.nvim",
+    keys = {
+      { "<Leader>gw", "", desc = "Worktrees" },
+      { "<Leader>gww", function() gwq_worktree_picker() end, desc = "Switch worktree" },
+      { "<Leader>gwl", function() gwq_worktree_picker() end, desc = "List worktrees" },
+      { "<Leader>gwa", function() gwq_add() end, desc = "Add worktree" },
+      { "<Leader>gwr", function() gwq_worktree_picker() end, desc = "Remove worktree (C-d)" },
+      { "<Leader>gws", function() gwq_status_picker() end, desc = "Worktree status" },
+      { "<Leader>fp", function() ghq_repo_picker() end, desc = "Find project (ghq)" },
+    },
+    init = function()
+      -- Register user commands
+      vim.api.nvim_create_user_command("GwqSwitch", function() gwq_worktree_picker() end, { desc = "Switch gwq worktree" })
+      vim.api.nvim_create_user_command("GwqAdd", function(cmd) gwq_add(cmd.args ~= "" and cmd.args or nil) end, { nargs = "?", desc = "Create gwq worktree" })
+      vim.api.nvim_create_user_command("GwqRemove", function() gwq_worktree_picker() end, { desc = "Remove gwq worktree" })
+      vim.api.nvim_create_user_command("GwqStatus", function() gwq_status_picker() end, { desc = "Show gwq worktree status" })
+      vim.api.nvim_create_user_command("GhqList", function() ghq_repo_picker() end, { desc = "Browse ghq repositories" })
 
       -- Autocmds for worktree cache refresh
-      opts.autocmds = opts.autocmds or {}
-      opts.autocmds.gwq_worktree_refresh = {
-        {
-          event = "DirChanged",
-          desc = "Refresh gwq worktree info",
-          callback = refresh_worktree_info,
-        },
-        {
-          event = "VimEnter",
-          desc = "Initialize gwq worktree info",
-          callback = refresh_worktree_info,
-        },
-        {
-          event = "User",
-          pattern = "GwqWorktreeChanged",
-          desc = "Refresh worktree cache on switch",
-          callback = refresh_worktree_info,
-        },
-      }
-    end,
-  },
-
-  -- Heirline statusline: add worktree indicator after git_branch
-  {
-    "rebelot/heirline.nvim",
-    opts = function(_, opts)
-      if not opts.statusline then return end
-
-      -- Insert worktree indicator after git_branch (index 2)
-      local worktree_component = {
-        condition = function() return worktree_cache.is_worktree end,
-        provider = " wt ",
-        hl = { fg = "#f5a97f", bold = true },
-      }
-
-      table.insert(opts.statusline, 3, worktree_component)
+      local group = vim.api.nvim_create_augroup("gwq_worktree_refresh", { clear = true })
+      vim.api.nvim_create_autocmd("DirChanged", {
+        group = group,
+        desc = "Refresh gwq worktree info",
+        callback = refresh_worktree_info,
+      })
+      vim.api.nvim_create_autocmd("VimEnter", {
+        group = group,
+        desc = "Initialize gwq worktree info",
+        callback = refresh_worktree_info,
+      })
+      vim.api.nvim_create_autocmd("User", {
+        group = group,
+        pattern = "GwqWorktreeChanged",
+        desc = "Refresh worktree cache on switch",
+        callback = refresh_worktree_info,
+      })
     end,
   },
 }
