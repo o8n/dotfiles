@@ -18,16 +18,6 @@
 ---@field free_mem_gb number
 ---@field mem_percent number
 
--- Module-level cache for statusline (matches gwq worktree_cache pattern)
-local stats_cache = {
-  cpu_total = 0,
-  mem_percent = 0,
-  top_process = "",
-  updated_at = 0,
-}
-
-local refresh_timer = nil
-local CACHE_TTL_SEC = 10
 local PAGE_SIZE = 16384
 local TOTAL_MEM = 38654705664 -- fallback, updated dynamically via sysctl
 
@@ -247,15 +237,6 @@ local function process_picker(opts, sort_by)
     if sort_by == "mem" then
       table.sort(processes, function(a, b) return a.mem > b.mem end)
     end
-
-    -- Update stats cache
-    local cpu_sum = 0
-    for _, p in ipairs(processes) do
-      cpu_sum = cpu_sum + p.cpu
-    end
-    stats_cache.cpu_total = cpu_sum
-    stats_cache.top_process = processes[1] and processes[1].comm or ""
-    stats_cache.updated_at = os.clock()
 
     local displayer = entry_display.create {
       separator = " ",
@@ -501,36 +482,6 @@ local function show_system_summary()
   end)
 end
 
--- ── Background Refresh ───────────────────────────────────────────
-
-local function start_stats_refresh()
-  if refresh_timer then return end
-  refresh_timer = vim.uv.new_timer()
-  refresh_timer:start(0, CACHE_TTL_SEC * 1000, function()
-    vim.schedule(function()
-      fetch_processes(function(processes)
-        if not processes or #processes == 0 then return end
-        local cpu_sum = 0
-        for _, p in ipairs(processes) do
-          cpu_sum = cpu_sum + p.cpu
-        end
-        stats_cache.cpu_total = cpu_sum
-        stats_cache.top_process = processes[1] and processes[1].comm or ""
-        stats_cache.updated_at = os.clock()
-      end)
-      fetch_vm_stat(function(sys) stats_cache.mem_percent = sys.mem_percent end)
-    end)
-  end)
-end
-
-local function stop_stats_refresh()
-  if refresh_timer then
-    refresh_timer:stop()
-    refresh_timer:close()
-    refresh_timer = nil
-  end
-end
-
 -- ── Plugin Specs ─────────────────────────────────────────────────
 
 ---@type LazySpec
@@ -582,48 +533,13 @@ return {
       opts.autocmds.activity_monitor_refresh = {
         {
           event = "VimEnter",
-          desc = "Start activity monitor stats refresh",
+          desc = "Initialize activity monitor total memory",
           callback = function()
             fetch_total_memory(function(bytes) TOTAL_MEM = bytes end)
-            start_stats_refresh()
           end,
         },
-        {
-          event = "VimLeavePre",
-          desc = "Stop activity monitor stats refresh",
-          callback = stop_stats_refresh,
-        },
       }
     end,
   },
 
-  {
-    "rebelot/heirline.nvim",
-    opts = function(_, opts)
-      if not opts.statusline then return end
-
-      local activity_component = {
-        condition = function() return stats_cache.updated_at > 0 end,
-        provider = function()
-          return string.format(" CPU:%.0f%% Mem:%.0f%% ", stats_cache.cpu_total, stats_cache.mem_percent)
-        end,
-        hl = function()
-          if stats_cache.mem_percent > 80 or stats_cache.cpu_total > 200 then
-            return { fg = "#ed8796", bold = true }
-          elseif stats_cache.mem_percent > 60 or stats_cache.cpu_total > 100 then
-            return { fg = "#f5a97f", bold = true }
-          else
-            return { fg = "#a6da95" }
-          end
-        end,
-        on_click = {
-          callback = function() process_picker() end,
-          name = "activity_monitor_click",
-        },
-      }
-
-      local insert_pos = math.max(#opts.statusline, 1)
-      table.insert(opts.statusline, insert_pos, activity_component)
-    end,
-  },
 }
