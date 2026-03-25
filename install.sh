@@ -38,6 +38,8 @@ create_symlink "$DOTFILES_DIR/.zshrc" "$HOME/.zshrc"
 create_symlink "$DOTFILES_DIR/.vimrc" "$HOME/.vimrc"
 create_symlink "$DOTFILES_DIR/.tmux.conf" "$HOME/.tmux.conf"
 create_symlink "$DOTFILES_DIR/nvim" "$HOME/.config/nvim"
+mkdir -p "$HOME/.config/wezterm"
+create_symlink "$DOTFILES_DIR/wezterm/wezterm.lua" "$HOME/.config/wezterm/wezterm.lua"
 
 # グローバルgit hooksをインストール（AI dual review）
 if [ -f "$DOTFILES_DIR/hooks/install-hooks.sh" ]; then

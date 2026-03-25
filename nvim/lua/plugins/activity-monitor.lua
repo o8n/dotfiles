@@ -19,7 +19,7 @@
 ---@field mem_percent number
 
 local PAGE_SIZE = 16384
-local TOTAL_MEM = 38654705664 -- fallback, updated dynamically via sysctl
+local TOTAL_MEM = nil -- set dynamically via sysctl at startup
 
 -- System-critical processes that should never be killed
 local PROTECTED = {
@@ -85,6 +85,7 @@ local function fetch_vm_stat(callback)
       local wired = extract "Pages wired down:%s+(%d+%.)"
 
       local used_bytes = (active + wired) * PAGE_SIZE
+      if not TOTAL_MEM then return end
       callback {
         total_mem_gb = TOTAL_MEM / (1024 ^ 3),
         used_mem_gb = used_bytes / (1024 ^ 3),

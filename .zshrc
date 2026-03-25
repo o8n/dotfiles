@@ -312,5 +312,8 @@ function ecs-exec() {
         --command "/bin/sh"
 }
 
+# tmux: 既存セッションがあればアタッチ、なければ新規作成
+alias tmux="tmux attach || tmux new"
+
 # ローカル専用設定（git管理外）
 [[ -f ~/.zshrc.local ]] && source ~/.zshrc.local
