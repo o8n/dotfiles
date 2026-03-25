@@ -31,6 +31,7 @@ return {
         signcolumn = "yes", -- sets vim.opt.signcolumn to yes
         wrap = false, -- sets vim.opt.wrap
         autoread = true, -- auto-reload files changed outside of nvim
+        timeoutlen = 500, -- extend timeout for leader key sequences (default 300ms)
       },
       g = { -- vim.g.<key>
         -- configure global vim variables (vim.g)
@@ -72,6 +73,41 @@ return {
         -- tables with just a `desc` key will be registered with which-key if it's installed
         -- this is useful for naming menus
         -- ["<Leader>b"] = { desc = "Buffers" },
+
+        -- Override git Telescope commands to handle terminal buffers safely
+        -- AstroNvim defaults use use_file_path=true which breaks on term:// buffers
+        ["<Leader>gb"] = {
+          function()
+            local opts = { use_file_path = true }
+            if vim.bo.buftype == "terminal" then opts = { cwd = vim.uv.cwd() } end
+            require("telescope.builtin").git_branches(opts)
+          end,
+          desc = "Git branches",
+        },
+        ["<Leader>gc"] = {
+          function()
+            local opts = { use_file_path = true }
+            if vim.bo.buftype == "terminal" then opts = { cwd = vim.uv.cwd() } end
+            require("telescope.builtin").git_commits(opts)
+          end,
+          desc = "Git commits (repository)",
+        },
+        ["<Leader>gC"] = {
+          function()
+            local opts = { use_file_path = true }
+            if vim.bo.buftype == "terminal" then opts = { cwd = vim.uv.cwd() } end
+            require("telescope.builtin").git_bcommits(opts)
+          end,
+          desc = "Git commits (current file)",
+        },
+        ["<Leader>gt"] = {
+          function()
+            local opts = { use_file_path = true }
+            if vim.bo.buftype == "terminal" then opts = { cwd = vim.uv.cwd() } end
+            require("telescope.builtin").git_status(opts)
+          end,
+          desc = "Git status",
+        },
 
         -- disable Telescope live_grep (replaced by fff.nvim)
         ["<Leader>fw"] = false,

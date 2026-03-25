@@ -15,7 +15,9 @@ return {
               local filepath = vim.api.nvim_buf_get_name(args.buf)
               if filepath == "" then return end
               vim.schedule(function()
-                vim.api.nvim_buf_delete(args.buf, { force = true })
+                -- PDFバッファを削除せずscratch化（nvim終了防止）
+                vim.bo[args.buf].buftype = "nofile"
+                vim.bo[args.buf].buflisted = false
                 local Terminal = require("toggleterm.terminal").Terminal
                 local tdf = Terminal:new({
                   cmd = "tdf " .. vim.fn.shellescape(filepath),
